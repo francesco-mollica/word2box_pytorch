@@ -1,0 +1,13 @@
+data/
+.data/
+.ipynb_checkpoints/
+__pycache__/
+
+.env
+.venv
+env/
+word2box_venv/
+word2v_venv/
+ENV/
+env.bak/
+venv.bak/

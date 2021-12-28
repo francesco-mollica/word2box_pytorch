@@ -1,0 +1,15 @@
+model_name: skipgram
+
+dataset: WikiText103
+data_dir: data/
+train_batch_size: 128
+val_batch_size: 128
+shuffle: True
+
+optimizer: Adam
+learning_rate: 0.001
+epochs: 1
+train_steps:
+
+checkpoint_frequency: 
+model_dir: word2vec-pytorch/weights/skipgram_WikiText2
