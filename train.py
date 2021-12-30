@@ -16,30 +16,29 @@ from utils.helper import (
 from box_embeddings.modules.volume.volume import Volume
 from box_embeddings.modules.intersection import Intersection
 
-from utils.constants import EMBED_DIMENSION, N_PRINT
-
 def train(config):
+
     #os.makedirs(config["model_dir"])
     
     
     train_dataloader, vocab = get_dataloader_and_vocab(
-        model_name=config["model_name"],
         ds_name=config["dataset"],
         ds_type="train",
         data_dir=config["data_dir"],
         batch_size=config["train_batch_size"],
-        shuffle=config["shuffle"],
-        vocab=None,
+        min_word_frequency=config["min_word_frequency"],
+        skipgram_n_words=config["skipgram_n_words"],
+        neg_count= config["neg_count"],
     )
 
     vocab_size = len(vocab)
     print(f"Vocabulary size: {vocab_size}")
 
-    box_vol = Volume(volume_temperature=0.1, intersection_temperature=0.001)
-    box_int = Intersection(intersection_temperature=0.001)
+    box_vol = Volume(volume_temperature=0.3, intersection_temperature=0.01)
+    box_int = Intersection(intersection_temperature=0.01)
 
     model_class = get_model_class(config["model_name"])
-    model = model_class(emb_size=vocab_size, embedding_dim=EMBED_DIMENSION, box_vol=box_vol, box_int=box_int)
+    model = model_class(emb_size=vocab_size, embedding_dim=config["embed_dimension"], box_vol=box_vol, box_int=box_int)
 
     optimizer_class = get_optimizer_class(config["optimizer"])
     optimizer = optimizer_class(model.parameters(), lr=config["learning_rate"])
@@ -58,12 +57,14 @@ def train(config):
         device=device,
         model_dir=config["model_dir"],
         model_name=config["model_name"],
+        skipgram_n_words=config["skipgram_n_words"],
+        neg_count=config["neg_count"],
     )
 
-    trainer.most_similar(vocab, N_PRINT)
+    trainer.most_similar(vocab, config["n_print"])
     trainer.train()
     print("Training finished.")
-    trainer.most_similar(vocab, N_PRINT)
+    trainer.most_similar(vocab, config["n_print"])
 
     trainer.save_model()
     trainer.save_loss()

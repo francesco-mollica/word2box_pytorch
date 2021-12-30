@@ -5,10 +5,6 @@ import string
 from nltk.corpus import stopwords
 cachedStopWords = stopwords.words("english")
 
-from utils.constants import (
-    MIN_WORD_FREQUENCY,
-)
-
 def preprocessing(data_iter, RANGE):
     import re
     print("START PREPROCESSING")
@@ -40,13 +36,13 @@ def get_data_iterator(ds_name, ds_type, data_dir):
     
     data_iter = to_map_style_dataset(data_iter)
     #RANGE= len(data_iter)
-    RANGE = 100000
+    RANGE = 20000
     preprocessing(data_iter, RANGE)
 
     return data_iter[0:RANGE]
 
-def get_dataloader_and_vocab(model_name, ds_name, ds_type, data_dir, batch_size, shuffle, vocab=None):
+def get_dataloader_and_vocab(ds_name, ds_type, data_dir, batch_size, min_word_frequency, skipgram_n_words, neg_count):
 
     data_iter = get_data_iterator(ds_name, ds_type, data_dir)
-    input_data = InputData(data_iter, batch_size, MIN_WORD_FREQUENCY)
+    input_data = InputData(data_iter, batch_size, min_word_frequency, skipgram_n_words, neg_count)
     return input_data, input_data.final_vocab

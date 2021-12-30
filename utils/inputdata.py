@@ -7,9 +7,6 @@ numpy.random.seed(12345)
 from torch.utils.data import Dataset
 from torchtext.vocab import vocab
 
-from utils.constants import SKIPGRAM_N_WORDS, NEG_COUNT
-
-
 class InputData(Dataset):
     """
     Attributes:
@@ -20,10 +17,12 @@ class InputData(Dataset):
         word_count: Word count in files, without low-frequency words.
     """
 
-    def __init__(self, data_iter, batch_size, min_count):
+    def __init__(self, data_iter, batch_size, min_count, skipgram_n_words, neg_count):
         self.idx = 0
         self.data_iter = data_iter
         self.batch_size = batch_size
+        self.skipgram_n_words = skipgram_n_words
+        self.neg_count = neg_count
         self.get_words(min_count)
         self.word_pair_catch = deque()
         self.init_sample_table()
@@ -105,7 +104,7 @@ class InputData(Dataset):
 
     def init_sample_table(self):
         self.sample_table = []
-        sample_table_size = 1e6
+        sample_table_size = 1e8
         pow_frequency = numpy.array(list(self.word_frequency.values()))**0.75
         words_pow = sum(pow_frequency)
         ratio = pow_frequency / words_pow
@@ -141,7 +140,7 @@ class InputData(Dataset):
                     continue
             for i, u in enumerate(word_ids):
                 for j, v in enumerate(
-                        word_ids[max(i - SKIPGRAM_N_WORDS, 0):i + SKIPGRAM_N_WORDS + 1]):
+                        word_ids[max(i - self.skipgram_n_words, 0):i + self.skipgram_n_words + 1]):
                     assert u < self.word_count
                     assert v < self.word_count
                     if i == j:
@@ -153,11 +152,11 @@ class InputData(Dataset):
         batch_pairs = []
         for _ in range(self.batch_size):
             batch_pairs.append(self.word_pair_catch.popleft())     
-        neg_v = self.get_neg_v_neg_sampling(batch_pairs, NEG_COUNT)
+        neg_v = self.get_neg_v_neg_sampling(batch_pairs, self.neg_count)
 
         return torch.tensor(batch_pairs).T, torch.tensor(neg_v)
 
 
     def evaluate_pair_count(self, window_size):
-        return self.sentence_length * (2 * SKIPGRAM_N_WORDS - 1) - (
-            self.sentence_count - 1) * (1 + SKIPGRAM_N_WORDS) * SKIPGRAM_N_WORDS
+        return self.sentence_length * (2 * self.skipgram_n_words - 1) - (
+            self.sentence_count - 1) * (1 + self.skipgram_n_words) * self.skipgram_n_words

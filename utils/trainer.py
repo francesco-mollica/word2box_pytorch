@@ -3,8 +3,13 @@ import numpy as np
 import json
 import torch
 from tqdm import tqdm
+from box_embeddings.modules.volume.volume import Volume
+from box_embeddings.modules.intersection import Intersection
+from tabulate import tabulate
+import itertools
 
-from utils.constants import N_PRINT, SKIPGRAM_N_WORDS, NEG_COUNT
+
+
 
 class Trainer:
     """Main class for model training"""
@@ -21,6 +26,10 @@ class Trainer:
         device,
         model_dir,
         model_name,
+        skipgram_n_words,
+        neg_count,
+
+
     ):  
         self.model = model
         self.epochs = epochs
@@ -32,6 +41,8 @@ class Trainer:
         self.device = device
         self.model_dir = model_dir
         self.model_name = model_name
+        self.neg_count = neg_count
+        self.skipgram_n_words = skipgram_n_words
         self.loss = {"train": []}
         #self.loss = {"train": [], "val": []}
         self.model.to(self.device)
@@ -42,18 +53,21 @@ class Trainer:
         loss = - average_positive
 
         a = torch.unsqueeze(target_vol,1)
-        b = a.expand(a.shape[0], NEG_COUNT)
+        b = a.expand(a.shape[0], self.neg_count)
         
         ########provare a togliere negative_vol come regolarizzazione######
         #average_negative = torch.sum(torch.squeeze(negative_int_volumes-b ,1) ,1)
-        average_negative = torch.sum(torch.squeeze(negative_int_volumes-(negative_vol+b) ,1) ,1)
+        if self.neg_count == 1:
+            average_negative = torch.squeeze(negative_int_volumes-(negative_vol+b) ,1)
+        else:
+            average_negative = torch.sum(torch.squeeze(negative_int_volumes-(negative_vol+b) ,1) ,1)
         loss +=  average_negative
 
-        print("loss: ",torch.mean(loss).item(), " pos: ", torch.mean(average_positive).item(), "neg: ", torch.mean(average_negative).item())
+        #print("loss: ",torch.sum(loss).item(), " pos: ", torch.sum(average_positive).item(), "neg: ", torch.sum(average_negative).item())
         return torch.sum(loss)
 
     def train(self):
-        for epoch in range(self.epochs):
+        for epoch in range(0,1):
             self._train_epoch()
             #self._validate_epoch()
             print(
@@ -76,7 +90,7 @@ class Trainer:
         self.model.train()
         running_loss = []
 
-        pair_count = self.train_dataloader.evaluate_pair_count(SKIPGRAM_N_WORDS)
+        pair_count = self.train_dataloader.evaluate_pair_count(self.skipgram_n_words)
         batch_count = self.epochs * pair_count / self.train_dataloader.batch_size
         process_bar = tqdm(range(int(batch_count)))
 
@@ -110,30 +124,6 @@ class Trainer:
         epoch_loss = np.mean(running_loss)
         self.loss["train"].append(epoch_loss)
 
-    # def _validate_epoch(self):
-    #     self.model.eval()
-    #     running_loss = []
-
-    #     with torch.no_grad():
-    #         for i, batch_data in enumerate(self.val_dataloader, 1):
-    #             ##inputs target
-    #             inputs = batch_data[0].to(self.device)
-    #             #context positive
-    #             labels = batch_data[1].to(self.device)
-    #             ###context negative
-    #             negative = batch_data[2].to(self.device)
-
-    #             target_vol, positive_vol, negative_vol, positive_int_volumes, negative_int_volumes = self.model(inputs, labels, negative)
-    #             #####chiamo la mia loss
-    #             loss = self.loss_(target_vol, positive_vol, negative_vol, positive_int_volumes, negative_int_volumes)
-
-    #             running_loss.append(loss.item())
-
-    #             if i == self.val_steps:
-    #                 break
-
-    #     epoch_loss = np.mean(running_loss)
-    #     self.loss["val"].append(epoch_loss)
 
     def _save_checkpoint(self, epoch):
         """Save model checkpoint to `self.model_dir` directory"""
@@ -157,17 +147,12 @@ class Trainer:
 
     ########metodi per printare intersezione tra parole 
     def most_similar(self, vocab, N):
+        box_vol = Volume(volume_temperature=0, intersection_temperature=0)
+        box_int = Intersection(intersection_temperature=0)
         
         lis_all = list(range(len(vocab)))
 
-        print("brother, ", vocab["brother"])
-        print("mother, ", vocab["mother"])
-        print("father, ", vocab["father"])
-        print("daughter, ", vocab["daughter"])
-        print("son, ", vocab["son"])
-        print("wife, ", vocab["wife"])
-        print("friend, ", vocab["friend"])
-        words = ["brother", "mother", "father", "daughter", "son", "wife", "friend"]
+        words = ["brother", "friend", "mother", "father", "daughter", "son", "wife", "husband"]
         lis = []
         for i in words:
             lis.append(vocab[i])
@@ -176,12 +161,41 @@ class Trainer:
         pos = torch.tensor(lis_all).cuda()
         embedding_u = self.model.embeddings_word(pos)
 
+
         for i, index in enumerate(lis):
             pos = torch.tensor([index]).cuda()
             embedding = self.model.embeddings_word(pos)
-            volumes = self.model.box_vol(self.model.box_int(embedding, embedding_u))
-            idx = (-volumes).argsort()
-            print("parola: ", index, ", ", vocab.lookup_tokens([index]))
-            for i, indexx in enumerate(idx[0:N]):
-                print(" si interseca con:", vocab.lookup_tokens([indexx]))
-        
+            volumes = box_vol(box_int(embedding_u, embedding))
+
+            near = []
+            box_contenuto = []
+
+            for i, val in enumerate(volumes.data):
+                if (val.item() == box_vol(embedding).item() ) :
+                    box_contenuto.append((i, box_vol(self.model.embeddings_word(torch.tensor([i]).cuda())).item()))
+                else:
+                    near.append((i, val.item()))
+
+            table=[]
+            ####di quelli in cui è contenuto o overlappato prendo 10 con volumi più piccoli#####
+            box_contenuto.sort(key=lambda a: a[1], reverse=False)
+
+            ####di quelli con cui è intersecato prendi quelli che hanno intersezione maggiore#####
+            near.sort(key=lambda a: a[1], reverse=True)  
+
+            for combination in itertools.zip_longest(box_contenuto[0:N], near[0:N]):
+                if combination[0] == None:
+                    table.append([ index, vocab.lookup_tokens([index])[0], "--", vocab.lookup_tokens([combination[1][0]])[0],  ])
+                else:
+                    table.append([ index, vocab.lookup_tokens([index])[0], vocab.lookup_tokens([combination[0][0]])[0], vocab.lookup_tokens([combination[1][0]])[0],  ])
+
+            print(tabulate(table, headers=["INDEX", "WORD", "CONTAINED/OVERLAPPED", "NEAR"]))
+
+            #idx = (-volumes).argsort()
+
+            #for i, indexx in enumerate(idx[0:N]):
+                #print(" si interseca con:", vocab.lookup_tokens([indexx]))
+
+            
+                
+                        
