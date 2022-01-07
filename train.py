@@ -1,8 +1,9 @@
 import argparse
 import yaml
-import os
 import torch
-
+import random
+import numpy as np
+import os 
 from utils.dataloader import get_dataloader_and_vocab
 from utils.trainer import Trainer
 from utils.helper import (
@@ -12,14 +13,24 @@ from utils.helper import (
     save_config,
     save_vocab,
 )
-
 from box_embeddings.modules.volume.volume import Volume
 from box_embeddings.modules.intersection import Intersection
 
+
+def set_all_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
 def train(config):
 
-    #os.makedirs(config["model_dir"])
-    
+    path = ('/epochs_' + str(config["epochs"]) + '_min_count_' + str(config["min_word_frequency"]) 
+    + '_batch_size_' + str(config["train_batch_size"]) + '_embed_dim_' + str(config["embed_dimension"]) 
+    +  '_lr_' + str(config["learning_rate"]) + '_window_' + str(config["skipgram_n_words"]) + '_neg_count_' + str(config["neg_count"]) )
+
+    os.makedirs(config["model_dir"]+ path, exist_ok=True)
     
     train_dataloader, vocab = get_dataloader_and_vocab(
         ds_name=config["dataset"],
@@ -29,12 +40,14 @@ def train(config):
         min_word_frequency=config["min_word_frequency"],
         skipgram_n_words=config["skipgram_n_words"],
         neg_count= config["neg_count"],
+        save=True,
     )
 
     vocab_size = len(vocab)
+
     print(f"Vocabulary size: {vocab_size}")
 
-    box_vol = Volume(volume_temperature=0.3, intersection_temperature=0.01)
+    box_vol = Volume(volume_temperature=0.1, intersection_temperature=0.01)
     box_int = Intersection(intersection_temperature=0.01)
 
     model_class = get_model_class(config["model_name"])
@@ -49,13 +62,11 @@ def train(config):
     trainer = Trainer(
         model=model,
         epochs=config["epochs"],
-        train_dataloader=train_dataloader,
-        train_steps=config["train_steps"],
+        train_dataloader = train_dataloader,
         optimizer=optimizer,
-        checkpoint_frequency=config["checkpoint_frequency"],
         lr_scheduler=lr_scheduler,
         device=device,
-        model_dir=config["model_dir"],
+        model_dir= (config["model_dir"] + path),
         model_name=config["model_name"],
         skipgram_n_words=config["skipgram_n_words"],
         neg_count=config["neg_count"],
@@ -68,9 +79,9 @@ def train(config):
 
     trainer.save_model()
     trainer.save_loss()
-    save_vocab(vocab, config["model_dir"])
-    save_config(config, config["model_dir"])
-    print("Model artifacts saved to folder:", config["model_dir"])
+    save_vocab(vocab, (config["model_dir"] + path))
+    save_config(config, (config["model_dir"] + path))
+    print("Model artifacts saved to folder:", (config["model_dir"]+ path))
     
     
 if __name__ == '__main__':
@@ -80,4 +91,6 @@ if __name__ == '__main__':
     
     with open(args.config, 'r') as stream:
         config = yaml.safe_load(stream)
+
+    set_all_seeds(12345)
     train(config)

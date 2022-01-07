@@ -18,6 +18,8 @@ class BoxModel(nn.Module):
         self.vocab_size = emb_size
         self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim, box_factory=BoxFactory("sigmoid_from_vector"))
         self.embeddings_context = BoxEmbedding(self.vocab_size, self.embedding_dim, box_factory=BoxFactory("sigmoid_from_vector"))
+        #self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim)
+        #self.embeddings_context = BoxEmbedding(self.vocab_size, self.embedding_dim)
         self.box_vol = box_vol
         self.box_int = box_int
 

@@ -17,25 +17,31 @@ class InputData(Dataset):
         word_count: Word count in files, without low-frequency words.
     """
 
-    def __init__(self, data_iter, batch_size, min_count, skipgram_n_words, neg_count):
+    def __init__(self, data_iter, batch_size, min_count, skipgram_n_words, neg_count, ds_name, RANGE):
         self.idx = 0
+        self.ds_name = ds_name
+        self.range = RANGE
         self.data_iter = data_iter
         self.batch_size = batch_size
         self.skipgram_n_words = skipgram_n_words
         self.neg_count = neg_count
         self.get_words(min_count)
         self.word_pair_catch = deque()
+        #self.initTableDiscards()
         self.init_sample_table()
+        print('Sentence Count: %d' % (self.sentence_count))
         print('Word Count: %d' % len(self.word2id))
         print('Sentence Length: %d' % (self.sentence_length))
     
     def __len__(self):
         return (len(self.sentence_count))
 
+    
     def get_words(self, min_count, load=False):
         self.sentence_length = 0
         self.sentence_count = 0
         self.word_count = 0
+        self.total_word_count = 0
         self.word2id = dict()
         self.id2word = dict()
         self.word_frequency = dict()
@@ -46,16 +52,16 @@ class InputData(Dataset):
         if load==False:
             word_frequency = dict()
             for line in self.data_iter:
-
-                ######remove stopowords here######
-                print("sentence_count:", self.sentence_count)
                 self.sentence_count += 1
                 line = line.strip().split(' ')
                 if line==['']:
                     line=[]
-                self.sentence_length += len(line)
+                    self.sentence_length += 0
+                else:
+                    self.sentence_length += len(line)
 
                 for w in line:
+                    self.total_word_count += 1
                     try:
                         word_frequency[w] += 1
                     except:
@@ -72,6 +78,7 @@ class InputData(Dataset):
                 self.word_frequency[wid] = c
                 self.word_frequency_vocab[w] = c
                 wid += 1
+            
             self.final_vocab = vocab(self.word_frequency_vocab)
             self.word_count = len(self.word2id)
 
@@ -84,12 +91,12 @@ class InputData(Dataset):
             infos["word2id"]=self.word2id
             infos["id2word"]=self.id2word
 
-            with open('/home/fmollica/Downloads/infos.pickle', 'wb') as handle:
+            with open('/home/fmollica/Downloads/infos_' + str(self.ds_name) + '_' +  str(self.range) + '_min_count_' + str(min_count)  + '.pickle', 'wb') as handle:
                 pickle.dump(infos, handle, protocol=pickle.HIGHEST_PROTOCOL)
             
             print("frequenze & infos salvate!")
         else:
-            with open('/home/fmollica/Downloads/infos.pickle', 'rb') as handle:
+            with open('/home/fmollica/Downloads/infos_' + str(self.ds_name) + '_' + str(self.range) + '_min_count_' + str(min_count) + '.pickle', 'rb') as handle:
                 infos = pickle.load(handle)
                 self.sentence_length=infos["sentence_length"]
                 self.sentence_count=infos["sentence_count"]
@@ -102,17 +109,23 @@ class InputData(Dataset):
 
             print("frequenze & infos caricate!")
 
+    def initTableDiscards(self):
+        t = 0.00001
+        f = numpy.array(list(self.word_frequency.values())) / self.total_word_count
+        self.discards = 1 - numpy.sqrt(t / f)
+
     def init_sample_table(self):
         self.sample_table = []
         sample_table_size = 1e8
-        pow_frequency = numpy.array(list(self.word_frequency.values()))**0.75
+        pow_frequency = numpy.array(list(self.word_frequency.values())) ** 0.75
         words_pow = sum(pow_frequency)
         ratio = pow_frequency / words_pow
         count = numpy.round(ratio * sample_table_size)
         for wid, c in enumerate(count):
             self.sample_table += [wid] * int(c)
-        self.sample_table = numpy.array(self.sample_table)
 
+        self.sample_table = numpy.array(self.sample_table)
+        
     def get_neg_v_neg_sampling(self, pos_word_pair, count):
         neg_v = numpy.random.choice(
             self.sample_table, size=(len(pos_word_pair), count)).tolist()
@@ -135,12 +148,13 @@ class InputData(Dataset):
             word_ids = []
             for word in sentence.strip().split(' '):
                 try:
-                    word_ids.append(self.word2id[word])
+                    #if numpy.random.rand() < (1 - self.discards[self.word2id[word]]):
+                        word_ids.append(self.word2id[word])
                 except:
                     continue
             for i, u in enumerate(word_ids):
                 for j, v in enumerate(
-                        word_ids[max(i - self.skipgram_n_words, 0):i + self.skipgram_n_words + 1]):
+                        word_ids[max(i - self.skipgram_n_words, 0):i + self.skipgram_n_words]):
                     assert u < self.word_count
                     assert v < self.word_count
                     if i == j:
@@ -158,5 +172,8 @@ class InputData(Dataset):
 
 
     def evaluate_pair_count(self, window_size):
-        return self.sentence_length * (2 * self.skipgram_n_words - 1) - (
+        
+        a = self.sentence_length * (2 * self.skipgram_n_words - 1) - (
             self.sentence_count - 1) * (1 + self.skipgram_n_words) * self.skipgram_n_words
+
+        return a

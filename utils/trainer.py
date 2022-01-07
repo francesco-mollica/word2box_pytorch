@@ -9,8 +9,6 @@ from tabulate import tabulate
 import itertools
 
 
-
-
 class Trainer:
     """Main class for model training"""
     
@@ -19,8 +17,6 @@ class Trainer:
         model,
         epochs,
         train_dataloader,
-        train_steps,
-        checkpoint_frequency,
         optimizer,
         lr_scheduler,
         device,
@@ -28,15 +24,11 @@ class Trainer:
         model_name,
         skipgram_n_words,
         neg_count,
-
-
     ):  
         self.model = model
         self.epochs = epochs
         self.train_dataloader = train_dataloader
-        self.train_steps = train_steps
         self.optimizer = optimizer
-        self.checkpoint_frequency = checkpoint_frequency
         self.lr_scheduler = lr_scheduler
         self.device = device
         self.model_dir = model_dir
@@ -50,7 +42,7 @@ class Trainer:
     def loss_(self, target_vol, positive_vol, negative_vol, positive_int_volumes, negative_int_volumes):
 
         average_positive = ((positive_int_volumes)-(target_vol+positive_vol))
-        loss = - average_positive
+        #loss = torch.zeros(average_positive.shape[0]).cuda()
 
         a = torch.unsqueeze(target_vol,1)
         b = a.expand(a.shape[0], self.neg_count)
@@ -61,32 +53,14 @@ class Trainer:
             average_negative = torch.squeeze(negative_int_volumes-(negative_vol+b) ,1)
         else:
             average_negative = torch.sum(torch.squeeze(negative_int_volumes-(negative_vol+b) ,1) ,1)
-        loss +=  average_negative
+
+        loss = ((-average_positive) +  average_negative)
 
         #print("loss: ",torch.sum(loss).item(), " pos: ", torch.sum(average_positive).item(), "neg: ", torch.sum(average_negative).item())
         return torch.sum(loss)
 
+
     def train(self):
-        for epoch in range(0,1):
-            self._train_epoch()
-            #self._validate_epoch()
-            print(
-                "Epoch: {}/{}, Train Loss={:.5f}".format(
-                #"Epoch: {}/{}, Train Loss={:.5f}, Val Loss={:.5f}".format(
-                    epoch + 1,
-                    self.epochs,
-                    self.loss["train"][-1],
-                    #self.loss["val"][-1],
-                )
-            )
-
-            self.lr_scheduler.step()
-
-            if self.checkpoint_frequency:
-                self._save_checkpoint(epoch)
-
-    def _train_epoch(self):
-
         self.model.train()
         running_loss = []
 
@@ -117,21 +91,11 @@ class Trainer:
             self.optimizer.step()
 
             running_loss.append(loss.item())
-
-            if i == self.train_steps:
-                break
+            #self.lr_scheduler.step()
 
         epoch_loss = np.mean(running_loss)
         self.loss["train"].append(epoch_loss)
 
-
-    def _save_checkpoint(self, epoch):
-        """Save model checkpoint to `self.model_dir` directory"""
-        epoch_num = epoch + 1
-        if epoch_num % self.checkpoint_frequency == 0:
-            model_path = "checkpoint_{}.pt".format(str(epoch_num).zfill(3))
-            model_path = os.path.join(self.model_dir, model_path)
-            torch.save(self.model, model_path)
 
     def save_model(self):
         """Save final model to `self.model_dir` directory"""
@@ -144,15 +108,13 @@ class Trainer:
         with open(loss_path, "w") as fp:
             json.dump(self.loss, fp)
 
-
-    ########metodi per printare intersezione tra parole 
     def most_similar(self, vocab, N):
-        box_vol = Volume(volume_temperature=0, intersection_temperature=0)
-        box_int = Intersection(intersection_temperature=0)
+        box_vol = Volume(volume_temperature=0.1, intersection_temperature=0.01)
+        box_int = Intersection(intersection_temperature=0.01)
         
         lis_all = list(range(len(vocab)))
 
-        words = ["brother", "friend", "mother", "father", "daughter", "son", "wife", "husband"]
+        words = ["mother", "father"]
         lis = []
         for i in words:
             lis.append(vocab[i])
@@ -185,16 +147,25 @@ class Trainer:
 
             for combination in itertools.zip_longest(box_contenuto[0:N], near[0:N]):
                 if combination[0] == None:
-                    table.append([ index, vocab.lookup_tokens([index])[0], "--", vocab.lookup_tokens([combination[1][0]])[0],  ])
+                    table.append([ index, vocab.lookup_tokens([index])[0], box_vol(embedding),  
+                    "  --", "  --", vocab.lookup_tokens([combination[1][0]])[0],  combination[1][1], box_vol(self.model.embeddings_word(torch.tensor([combination[1][0]]).cuda())).item()])
                 else:
-                    table.append([ index, vocab.lookup_tokens([index])[0], vocab.lookup_tokens([combination[0][0]])[0], vocab.lookup_tokens([combination[1][0]])[0],  ])
 
-            print(tabulate(table, headers=["INDEX", "WORD", "CONTAINED/OVERLAPPED", "NEAR"]))
+                    table.append([ index, vocab.lookup_tokens([index])[0], box_vol(embedding), 
+                    vocab.lookup_tokens([combination[0][0]])[0], combination[0][1], vocab.lookup_tokens([combination[1][0]])[0],  
+                    combination[1][1], box_vol(self.model.embeddings_word(torch.tensor([combination[1][0]]).cuda())).item() ])
+            
 
-            #idx = (-volumes).argsort()
+            idx = (-volumes).argsort()
+            for i, indexx in enumerate(idx[0:N]):
+                print(" si interseca con:", vocab.lookup_tokens([indexx]))
 
-            #for i, indexx in enumerate(idx[0:N]):
-                #print(" si interseca con:", vocab.lookup_tokens([indexx]))
+
+            print(tabulate(table, headers=["INDEX", "WORD", "VOLUME", "CONTAINED/OVERLAPPED", "VOLUME",  "NEAR", "VOL_INTERSECTION", "VOLUME"]))
+
+            
+
+            
 
             
                 

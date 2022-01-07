@@ -32,15 +32,15 @@ def get_lr_scheduler(optimizer, total_epochs: int, verbose: bool = True):
     lr_scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda, verbose=verbose)
     return lr_scheduler
 
-
-def save_config(config: dict, model_dir: str):
+def save_config(config: dict, model_dir:str):
     """Save config file to `model_dir` directory"""
+        
     config_path = os.path.join(model_dir, "config.yaml")
     with open(config_path, "w") as stream:
         yaml.dump(config, stream)
         
         
-def save_vocab(vocab, model_dir: str):
+def save_vocab(vocab, model_dir:str):
     """Save vocab file to `model_dir` directory"""
     vocab_path = os.path.join(model_dir, "vocab.pt")
     torch.save(vocab, vocab_path)
