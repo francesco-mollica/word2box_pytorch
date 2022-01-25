@@ -1,14 +1,14 @@
 model_name: skipgram
-model_dir: word2box_pytorch/weights/skipgram_WikiText2
-dataset: WikiText2
+model_dir: weights/skipgram_WikiText103
+dataset: WikiText103
 data_dir: data/
 optimizer: Adam
-train_batch_size: 512
-learning_rate: 0.001
-epochs: 2
-skipgram_n_words: 5
-min_word_frequency: 50
-neg_count: 5
+train_batch_size: 
+learning_rate: 
+epochs: 10
+skipgram_n_words: 
+min_word_frequency:
+neg_count: 
 embed_dimension: 2
 n_print: 50
 max_sequence_length: 256

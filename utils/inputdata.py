@@ -1,12 +1,13 @@
+from platform import win32_edition
 from typing import OrderedDict
 import numpy as numpy
 from collections import deque
 import pickle
 import torch
-numpy.random.seed(12345)
+import random
 from torch.utils.data import Dataset
 from torchtext.vocab import vocab
-
+from tqdm import tqdm
 class InputData(Dataset):
     """
     Attributes:
@@ -47,6 +48,7 @@ class InputData(Dataset):
         self.word_frequency = dict()
         self.word_frequency_vocab = dict()
         self.final_vocab = None
+        self.count_all_pairs = 0
         
 
         if load==False:
@@ -93,8 +95,7 @@ class InputData(Dataset):
 
             with open('/home/fmollica/Downloads/infos_' + str(self.ds_name) + '_' +  str(self.range) + '_min_count_' + str(min_count)  + '.pickle', 'wb') as handle:
                 pickle.dump(infos, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            
-            print("frequenze & infos salvate!")
+            print("FREQUENCIES & INFOS SAVED!")
         else:
             with open('/home/fmollica/Downloads/infos_' + str(self.ds_name) + '_' + str(self.range) + '_min_count_' + str(min_count) + '.pickle', 'rb') as handle:
                 infos = pickle.load(handle)
@@ -107,10 +108,10 @@ class InputData(Dataset):
                 self.id2word=infos["id2word"]
                 self.final_vocab = vocab(self.word_frequency_vocab)
 
-            print("frequenze & infos caricate!")
+            print("FREQUENCIES & INFOS LOADED!")
 
     def initTableDiscards(self):
-        t = 0.00001
+        t = 0.001
         f = numpy.array(list(self.word_frequency.values())) / self.total_word_count
         self.discards = 1 - numpy.sqrt(t / f)
 
@@ -127,9 +128,27 @@ class InputData(Dataset):
         self.sample_table = numpy.array(self.sample_table)
         
     def get_neg_v_neg_sampling(self, pos_word_pair, count):
-        neg_v = numpy.random.choice(
-            self.sample_table, size=(len(pos_word_pair), count)).tolist()
-        return neg_v
+
+        neg_v_all = []
+        for elem in pos_word_pair:
+            
+            neg_v = numpy.random.choice(self.sample_table, size=(count)).tolist()
+            
+            not_contains = [target for target in neg_v if target!=elem[0]]
+            contains = [target for target in neg_v if target==elem[0]]
+            contains_1 = []
+            not_contains_1 = not_contains
+            
+            if len(contains)==0:
+                not_contains_1 = not_contains
+            while len(not_contains_1)!=count:
+                neg_v_1 = numpy.random.choice(self.sample_table, size=((count-len(not_contains_1)))).tolist()
+                not_contains_1 = not_contains_1 + [target for target in neg_v_1 if target!=elem[0]]
+        
+        
+            neg_v_all.append(not_contains_1)
+        #neg_v = numpy.random.choice(self.sample_table, size=(len(pos_word_pair), count)).tolist()
+        return neg_v_all
 
     def __getitem__(self, idx):
         
@@ -148,18 +167,28 @@ class InputData(Dataset):
             word_ids = []
             for word in sentence.strip().split(' '):
                 try:
-                    #if numpy.random.rand() < (1 - self.discards[self.word2id[word]]):
+                    # if numpy.random.rand() < (1 - self.discards[self.word2id[word]]):
                         word_ids.append(self.word2id[word])
                 except:
                     continue
-            for i, u in enumerate(word_ids):
-                for j, v in enumerate(
-                        word_ids[max(i - self.skipgram_n_words, 0):i + self.skipgram_n_words]):
-                    assert u < self.word_count
-                    assert v < self.word_count
-                    if i == j:
+            
+            line_tuple = []
+
+            for i,elem in enumerate(word_ids):
+                line_tuple.append((elem, i))
+            
+            word_pair_catch_2 = []
+
+            for i, u in enumerate(line_tuple):
+                skipgram_n_words = 4
+                
+                for j, v in enumerate(line_tuple[max(i - skipgram_n_words, 0):i + skipgram_n_words+1]):
+                    assert u[0] < self.word_count
+                    assert v[0] < self.word_count
+                    if i==v[1]:
                         continue
-                    self.word_pair_catch.append((u, v))
+                    self.word_pair_catch.append((u[0], v[0]))
+
             
             self.idx += 1
                 
@@ -170,10 +199,38 @@ class InputData(Dataset):
 
         return torch.tensor(batch_pairs).T, torch.tensor(neg_v)
 
-
     def evaluate_pair_count(self, window_size):
         
-        a = self.sentence_length * (2 * self.skipgram_n_words - 1) - (
-            self.sentence_count - 1) * (1 + self.skipgram_n_words) * self.skipgram_n_words
+        print("START COUNT OF PAIRS!!")
+        
+        for i in tqdm(range(0,self.range)):
+            sentence = self.data_iter[i]
+            word_ids = []
+            for word in sentence.strip().split(' '):
+                try:
+                    # if numpy.random.rand() < (1 - self.discards[self.word2id[word]]):
+                        word_ids.append(self.word2id[word])
+                except:
+                    continue
+            
+            line_tuple = []
 
-        return a
+            for i,elem in enumerate(word_ids):
+                line_tuple.append((elem, i))
+
+            word_pair_catch_2 = []
+
+            for i, u in enumerate(line_tuple):
+                skipgram_n_words = 4
+                
+                for j, v in enumerate(line_tuple[max(i - skipgram_n_words, 0):i + skipgram_n_words+1]):
+                    
+                    if i==v[1]:
+                        continue
+                    word_pair_catch_2.append((u[0], v[0]))
+                    
+            self.count_all_pairs += len(word_pair_catch_2)
+            
+        print("TOTAL NUMBER OF PAIRS: ",self.count_all_pairs)
+        print("FINISH COUNT OF PAIRS!!")
+        return self.count_all_pairs

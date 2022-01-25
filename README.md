@@ -1,12 +1,12 @@
 # Word2Box in PyTorch
 
-Implementation of the first paper on word2vec - [Efficient Estimation of Word Representations in Vector Space](https://arxiv.org/abs/1301.3781). For detailed explanation of the code here, check my post - [Word2vec with PyTorch: Reproducing Original Paper](https://notrocketscience.blog/word2vec-with-pytorch-implementing-original-paper/).
+Implementation of one of the first word2box model using the box-embeddings library proposed by massach - [Efficient Estimation of Word Representations in Vector Space](https://arxiv.org/abs/1301.3781). 
 
-## Word2Vec Overview
+## Word2box Overview
 
 There 2 model architectures desctibed in the paper:
 
-- Continuous Bag-of-Words Model (CBOW), that predicts word based on its context;
+
 - Continuous Skip-gram Model (Skip-Gram), that predicts context for a word.
 
 Difference with the original paper:
@@ -19,13 +19,6 @@ Difference with the original paper:
 - Adam optimizer was used instead of Adagrad.
 - Trained for 5 epochs.
 - Regularization applied: embedding vector norms are restricted to 1.
-
-
-### CBOW Model in Details
-#### High-Level Model
-![alt text](docs/cbow_overview.png)
-#### Model Architecture
-![alt text](docs/cbow_detailed.png)
 
 
 ### Skip-Gram Model in Details
@@ -46,12 +39,17 @@ Difference with the original paper:
 │   └── Inference.ipynb
 ├── requirements.txt
 ├── train.py
+├── app.py
+├── train.py
 ├── utils
-│   ├── constants.py
+│   ├── calculate_correlation.py
 │   ├── dataloader.py
 │   ├── helper.py
-│   ├── model.py
-│   └── trainer.py
+│   ├── inputdata.py
+│   └── model.py
+│   └── trainer.py  
+│   └── word2vec_train.py
+├── word_similarity_dataset
 └── weights
 ```
 
