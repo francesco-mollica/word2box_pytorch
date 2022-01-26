@@ -85,13 +85,13 @@ Preprocessing on corpus(Wikitext2, Wikitext103):
 - split tokens using regex criteria to identify words and numbers
 - All punctuation was removed from the corpus
 - numbers were deleted
-- unk was deleted
+- <unk> was deleted
 - all words were lemmatized and made lowercase
 - any token with no-Ascii char was removed
 - any token occurring less than 100 times was dropped from Wikitext103
 - any token occuring less than 50 was dropped from Wikitext2
 
-the settings are randomly chose hyperparameters:
+the hyperparameters are randomly chose:
 - random seed
 - batch_size:[2048, 4096, 8192,16384, 32768] (Wikitext103)
 - batch_size:[16, 32, 64, 128, 256] (Wikitext2)

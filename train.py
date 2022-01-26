@@ -35,6 +35,13 @@ def train(config):
     list_neg_samp = [2,5,10,20]
 
     while True:
+        MYDIR = "corpus"
+        CHECK_FOLDER = os.path.isdir(MYDIR)
+        if not CHECK_FOLDER:
+            os.makedirs(MYDIR, exist_ok=True)
+            break
+        
+    while True:
 
         if config["dataset"]=="WikiText103":
             config["train_batch_size"] = random.choice(list_batch_size_wikitext103)
