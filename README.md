@@ -19,11 +19,8 @@ Difference with the original word2vec paper by Mikolov - [Distributed Representa
 - Regularization applied: for giving a probabilistic interpretation embedding box are restricted to have volume 1.
 
 
-### Skip-Gram Model in Details
-#### High-Level Model
+### Skip-Gram word2box Model in Details
 ![alt text](docs/skip-gram.png)
-#### Model Architecture
-![alt text](docs/skipgram_detailed.png)
 
 
 ## Project Structure
