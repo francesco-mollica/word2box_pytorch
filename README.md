@@ -56,11 +56,17 @@ Difference with the original paper:
 - **utils/dataloader.py** - data loader for WikiText-2 and WikiText103 datasets
 - **utils/model.py** - model architectures
 - **utils/trainer.py** - class for model training and evaluation
-
+- **utils/calculate_correlation.py** - script for calculate Spearman's correlation
+- **utils/word2vec_train.py** - script for train a Gensim word2vec model
+- **utils/helper.py** - contains some helper functions
+- **utils/inputdata.py** - script that manipulate the data loader
+- **app.py** - Dash app for visualize models
 - **train.py** - script for training
 - **config.yaml** - file with training parameters
 - **weights/** - folder where expriments artifacts are stored
-- **notebooks/Inference.ipynb** - demo of how embeddings are used
+- **corpus/** - folder where txt corpus are saved
+- **notebooks/toy_box_embeddings.ipynb** - demo of how box embeddings works and are used
+- **word_similarity_dataset** - folder with all similarity dataset benchmarks
 
 ## Usage
 
@@ -71,7 +77,7 @@ python3 train.py --config config.yaml
 
 Before running the command, change the training parameters in the config.yaml, most important:
 
-- model_name ("skipgram", "cbow")
+- model_name ("skipgram")
 - dataset ("WikiText2", "WikiText103")
 - model_dir (directory to store experiment artifacts, should start with "weights/")
 
