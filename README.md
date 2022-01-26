@@ -71,6 +71,9 @@ Difference with the original word2vec paper by Mikolov - [Distributed Representa
 
 
 ```
+python3 -m word2box_venv
+source word2box_venv/bin/activate
+pip install requirements.txt
 python3 train.py --config config.yaml
 ```
 
