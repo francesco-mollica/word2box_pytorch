@@ -6,7 +6,7 @@ Implementation of word2box model using the box-embeddings library proposed by Um
 
 The model architecture described in the thesis:
 
-- Continuous Skip-gram Model (Skip-Gram), model that represents each word as a box instead of a vector and predicts context for a word.
+- Continuous Skip-gram Model (Skip-Gram), model that represents each word as a box instead of a vector and predicts context from a word.
 
 Difference with the original word2vec paper by Mikolov - [Distributed Representations of Words and Phrases and their Compositionality](https://proceedings.neurips.cc/paper/2013/file/9aa42b31882ec039965f3c4923ce901b-Paper.pdf):
 
