@@ -1,29 +1,27 @@
 # Word2Box in PyTorch
 
-Implementation of one of the first word2box model using the box-embeddings library proposed by massach - [Efficient Estimation of Word Representations in Vector Space](https://arxiv.org/abs/1301.3781). 
+Implementation of word2box model using the box-embeddings library proposed by Umass IESL - [Box Embeddings: An open-source library for representation learning using geometric structures](https://arxiv.org/pdf/2109.04997.pdf). 
 
 ## Word2box Overview
 
-There 2 model architectures desctibed in the paper:
+The model architecture described in the thesis:
 
+- Continuous Skip-gram Model (Skip-Gram), model that represents each word as a box instead of a vector and predicts context for a word.
 
-- Continuous Skip-gram Model (Skip-Gram), that predicts context for a word.
+Difference with the original word2vec paper by Mikolov - [Distributed Representations of Words and Phrases and their Compositionality](https://proceedings.neurips.cc/paper/2013/file/9aa42b31882ec039965f3c4923ce901b-Paper.pdf):
 
-Difference with the original paper:
-
-- Trained on [WikiText-2](https://pytorch.org/text/stable/datasets.html#wikitext-2) and [WikiText103](https://pytorch.org/text/stable/datasets.html#wikitext103) inxtead of Google News corpus.
-- Context for both models is represented as 4 history and 4 future words.
-- For CBOW model averaging for context word embeddings used instead of summation.
-- For Skip-Gram model all context words are sampled with the same probability. 
-- Plain Softmax was used instead of Hierarchical Softmax. No Huffman tree used either.
+- Trained on [WikiText-2](https://pytorch.org/text/stable/datasets.html#wikitext-2) and [WikiText103](https://pytorch.org/text/stable/datasets.html#wikitext103).
+- Instead of cosine similarity we use the intersection between two boxes.
+- Trained using Negative-sampling algorithm, there's also the possibility to activate also the subsampling function.
+- For Skip-Gram model all negative context words are sampled using a uniform distribution probability like Mikolov word2vec. 
 - Adam optimizer was used instead of Adagrad.
-- Trained for 5 epochs.
-- Regularization applied: embedding vector norms are restricted to 1.
+- Trained for 10 epochs.
+- Regularization applied: for giving a probabilistic interpretation embedding box are restricted to have volume 1.
 
 
 ### Skip-Gram Model in Details
 #### High-Level Model
-![alt text](docs/skipgram_overview.png)
+![alt text](docs/skip-gram.png)
 #### Model Architecture
 ![alt text](docs/skipgram_detailed.png)
 
@@ -35,12 +33,14 @@ Difference with the original paper:
 .
 ├── README.md
 ├── config.yaml
-├── notebooks
-│   └── Inference.ipynb
+├── weights
+├── corpus
+├── word_similarity_dataset
 ├── requirements.txt
-├── train.py
 ├── app.py
 ├── train.py
+├── notebooks
+│   └── toy_box_embeddings.ipynb
 ├── utils
 │   ├── calculate_correlation.py
 │   ├── dataloader.py
@@ -49,24 +49,23 @@ Difference with the original paper:
 │   └── model.py
 │   └── trainer.py  
 │   └── word2vec_train.py
-├── word_similarity_dataset
-└── weights
-```
 
-- **utils/dataloader.py** - data loader for WikiText-2 and WikiText103 datasets
-- **utils/model.py** - model architectures
-- **utils/trainer.py** - class for model training and evaluation
-- **utils/calculate_correlation.py** - script for calculate Spearman's correlation
-- **utils/word2vec_train.py** - script for train a Gensim word2vec model
-- **utils/helper.py** - contains some helper functions
-- **utils/inputdata.py** - script that manipulate the data loader
-- **app.py** - Dash app for visualize models
-- **train.py** - script for training
+```
 - **config.yaml** - file with training parameters
 - **weights/** - folder where expriments artifacts are stored
-- **corpus/** - folder where txt corpus are saved
+- **corpus/** - folder where txt corpus after preprocessing are saved
+- **word_similarity_dataset/** - folder with all similarity dataset benchmarks
+- **app.py** - Dash app for visualize models
+- **train.py** - script for training
 - **notebooks/toy_box_embeddings.ipynb** - demo of how box embeddings works and are used
-- **word_similarity_dataset** - folder with all similarity dataset benchmarks
+- **utils/calculate_correlation.py** - script for calculate Spearman's correlation
+- **utils/dataloader.py** - data loader for WikiText-2 and WikiText103 datasets
+- **utils/helper.py** - contains some helper functions
+- **utils/inputdata.py** - script that manipulates the data loader
+- **utils/model.py** - model architecture
+- **utils/trainer.py** - class for model training 
+- **utils/word2vec_train.py** - script for train a Gensim word2vec model
+
 
 ## Usage
 
@@ -80,5 +79,25 @@ Before running the command, change the training parameters in the config.yaml, m
 - model_name ("skipgram")
 - dataset ("WikiText2", "WikiText103")
 - model_dir (directory to store experiment artifacts, should start with "weights/")
+
+Preprocessing on corpus(Wikitext2, Wikitext103):
+
+- split tokens using regex criteria to identify words and numbers
+- All punctuation was removed from the corpus
+- numbers were deleted
+- unk was deleted
+- all words were lemmatized and made lowercase
+- any token with no-Ascii char was removed
+- any token occurring less than 100 times was dropped from Wikitext103
+- any token occuring less than 50 was dropped from Wikitext2
+
+the settings are randomly chose hyperparameters:
+- random seed
+- batch_size:[2048, 4096, 8192,16384, 32768] (Wikitext103)
+- batch_size:[16, 32, 64, 128, 256] (Wikitext2)
+- learning rate: log_uniform[exp(-1),exp(-10)]
+- Window_size: [5, 6, 7, 8, 9, 10]
+- negative_samples: [2, 5, 10, 20]
+- sub_sampling threshold: [0.001, 0.0001]
 
 
