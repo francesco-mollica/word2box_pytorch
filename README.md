@@ -12,7 +12,7 @@ Difference with the original word2vec paper by Mikolov - [Distributed Representa
 
 - Trained on [WikiText-2](https://pytorch.org/text/stable/datasets.html#wikitext-2) and [WikiText103](https://pytorch.org/text/stable/datasets.html#wikitext103).
 - Instead of cosine similarity we use the intersection between two boxes.
-- Trained using Negative-sampling algorithm, there's also the possibility to activate also the subsampling function.
+- Trained using Negative-sampling algorithm, there's also the possibility to activate the subsampling function.
 - For Skip-Gram model all negative context words are sampled using a uniform distribution probability like Mikolov word2vec. 
 - Adam optimizer was used instead of Adagrad.
 - Trained for 10 epochs.
