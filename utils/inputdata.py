@@ -28,6 +28,7 @@ class InputData(Dataset):
         self.neg_count = neg_count
         self.get_words(min_count)
         self.word_pair_catch = deque()
+        self.count_all_pairs = 0
         #self.initTableDiscards()
         self.init_sample_table()
         print('Sentence Count: %d' % (self.sentence_count))
@@ -37,8 +38,7 @@ class InputData(Dataset):
     def __len__(self):
         return (len(self.sentence_count))
 
-    
-    def get_words(self, min_count, load=False):
+    def get_words(self, min_count):
         self.sentence_length = 0
         self.sentence_count = 0
         self.word_count = 0
@@ -48,68 +48,40 @@ class InputData(Dataset):
         self.word_frequency = dict()
         self.word_frequency_vocab = dict()
         self.final_vocab = None
-        self.count_all_pairs = 0
+
+        word_frequency = dict()
+        for line in self.data_iter:
+            self.sentence_count += 1
+            line = line.strip().split(' ')
+            if line==['']:
+                line=[]
+                self.sentence_length += 0
+            else:
+                self.sentence_length += len(line)
+
+            for w in line:
+                self.total_word_count += 1
+                try:
+                    word_frequency[w] += 1
+                except:
+                    word_frequency[w] = 1
         
+        wid = 0
+        
+        for w, c in word_frequency.items():
+            if c < min_count:
+                self.sentence_length -= c
+                continue
+            self.word2id[w] = wid
+            self.id2word[wid] = w
+            self.word_frequency[wid] = c
+            self.word_frequency_vocab[w] = c
+            wid += 1
+        
+        self.final_vocab = vocab(self.word_frequency_vocab)
+        self.word_count = len(self.word2id)
 
-        if load==False:
-            word_frequency = dict()
-            for line in self.data_iter:
-                self.sentence_count += 1
-                line = line.strip().split(' ')
-                if line==['']:
-                    line=[]
-                    self.sentence_length += 0
-                else:
-                    self.sentence_length += len(line)
-
-                for w in line:
-                    self.total_word_count += 1
-                    try:
-                        word_frequency[w] += 1
-                    except:
-                        word_frequency[w] = 1
             
-            wid = 0
-            
-            for w, c in word_frequency.items():
-                if c < min_count:
-                    self.sentence_length -= c
-                    continue
-                self.word2id[w] = wid
-                self.id2word[wid] = w
-                self.word_frequency[wid] = c
-                self.word_frequency_vocab[w] = c
-                wid += 1
-            
-            self.final_vocab = vocab(self.word_frequency_vocab)
-            self.word_count = len(self.word2id)
-
-            infos = dict()
-            infos["sentence_length"]=self.sentence_length
-            infos["sentence_count"]=self.sentence_count
-            infos["word_frequency"]=self.word_frequency
-            infos["word_frequency_vocab"]=self.word_frequency_vocab
-            infos["word_count"]=self.word_count
-            infos["word2id"]=self.word2id
-            infos["id2word"]=self.id2word
-
-            with open('/home/fmollica/Downloads/infos_' + str(self.ds_name) + '_' +  str(self.range) + '_min_count_' + str(min_count)  + '.pickle', 'wb') as handle:
-                pickle.dump(infos, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print("FREQUENCIES & INFOS SAVED!")
-        else:
-            with open('/home/fmollica/Downloads/infos_' + str(self.ds_name) + '_' + str(self.range) + '_min_count_' + str(min_count) + '.pickle', 'rb') as handle:
-                infos = pickle.load(handle)
-                self.sentence_length=infos["sentence_length"]
-                self.sentence_count=infos["sentence_count"]
-                self.word_frequency=infos["word_frequency"]
-                self.word_frequency_vocab=infos["word_frequency_vocab"]
-                self.word_count=infos["word_count"]
-                self.word2id=infos["word2id"]
-                self.id2word=infos["id2word"]
-                self.final_vocab = vocab(self.word_frequency_vocab)
-
-            print("FREQUENCIES & INFOS LOADED!")
-
     def initTableDiscards(self):
         t = 0.001
         f = numpy.array(list(self.word_frequency.values())) / self.total_word_count
@@ -128,12 +100,10 @@ class InputData(Dataset):
         self.sample_table = numpy.array(self.sample_table)
         
     def get_neg_v_neg_sampling(self, pos_word_pair, count):
-
         neg_v_all = []
+
         for elem in pos_word_pair:
-            
             neg_v = numpy.random.choice(self.sample_table, size=(count)).tolist()
-            
             not_contains = [target for target in neg_v if target!=elem[0]]
             contains = [target for target in neg_v if target==elem[0]]
             contains_1 = []
@@ -144,7 +114,6 @@ class InputData(Dataset):
             while len(not_contains_1)!=count:
                 neg_v_1 = numpy.random.choice(self.sample_table, size=((count-len(not_contains_1)))).tolist()
                 not_contains_1 = not_contains_1 + [target for target in neg_v_1 if target!=elem[0]]
-        
         
             neg_v_all.append(not_contains_1)
         #neg_v = numpy.random.choice(self.sample_table, size=(len(pos_word_pair), count)).tolist()
@@ -176,11 +145,9 @@ class InputData(Dataset):
 
             for i,elem in enumerate(word_ids):
                 line_tuple.append((elem, i))
-            
-            word_pair_catch_2 = []
 
             for i, u in enumerate(line_tuple):
-                skipgram_n_words = 4
+                skipgram_n_words = self.skipgram_n_words
                 
                 for j, v in enumerate(line_tuple[max(i - skipgram_n_words, 0):i + skipgram_n_words+1]):
                     assert u[0] < self.word_count
@@ -189,7 +156,6 @@ class InputData(Dataset):
                         continue
                     self.word_pair_catch.append((u[0], v[0]))
 
-            
             self.idx += 1
                 
         batch_pairs = []
@@ -221,7 +187,7 @@ class InputData(Dataset):
             word_pair_catch_2 = []
 
             for i, u in enumerate(line_tuple):
-                skipgram_n_words = 4
+                skipgram_n_words = self.skipgram_n_words
                 
                 for j, v in enumerate(line_tuple[max(i - skipgram_n_words, 0):i + skipgram_n_words+1]):
                     

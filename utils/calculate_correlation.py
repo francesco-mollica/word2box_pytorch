@@ -23,7 +23,7 @@ def save_correlations_results(direc):
     word2vec_model = Word2Vec.load(f'{direc}/word2vec.model')
 
     volume = Volume(volume_temperature=0.0, intersection_temperature=0.0)
-    intersection = Intersection(intersection_temperature=0.0)
+    intersection = Intersection(intersection_temperature=0.001)
 
     boxes = model.embeddings_word.all_boxes
 

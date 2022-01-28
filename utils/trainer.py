@@ -7,6 +7,10 @@ from box_embeddings.modules.volume.volume import Volume
 from box_embeddings.modules.intersection import Intersection
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
+from sklearn.manifold import TSNE
+from math import dist
+import random
 
 
 class Trainer:
@@ -89,9 +93,9 @@ class Trainer:
             negative = neg_v.to(self.device)
 
             self.optimizer.zero_grad()
-            #####chiamo la forward del modello
+            
             target_vol, positive_vol, negative_vol, positive_int_volumes, negative_int_volumes = self.model(inputs, labels, negative)
-            #####chiamo la mia loss
+            
             loss = self.loss_(target_vol, positive_vol, negative_vol, positive_int_volumes, negative_int_volumes)
             loss.backward()
             self.optimizer.step()
@@ -125,25 +129,72 @@ class Trainer:
         rows = []
         for i in range(len(vocab)):
 
+            center = [0.5] * self.emb_dim
+
             embedding_target = boxes_target[i]
-            _, _, _, _, distance_target = self.model.extract_embeddings(embedding_target)
+            centroid_target = ((embedding_target.z + embedding_target.Z)/2).tolist()
+            distance_target = dist(center, centroid_target)
+
             embedding_context = boxes_context[i]
-            _, _, _, _, distance_context = self.model.extract_embeddings(embedding_context)
-
-
-
+            centroid_context = ((embedding_context.z + embedding_context.Z)/2).tolist()
+            distance_context = dist(center, centroid_context)
+            
             rows.append([i, vocab.lookup_token(i), frequency_vocab[vocab.lookup_token(i)],
              torch.exp(self.model.box_vol(embedding_target)).item(), torch.exp(self.model.box_vol(embedding_context)).item(),
              distance_target, distance_context ])
 
 
-
         df = pd.DataFrame(rows, columns=["Ix", "Word", "Frequency", "Volume_Target", "Volume_Context", "Distance_Target", "Distance_Context"])
 
         df.to_pickle(direc + '/dataframe' + '_' + type_ +  '.pkl')
-        #pivot_ui(df, outfile_path = direc + '/pivottablejs.html')
-        #HTML('pivottablejs.html')
+        
 
+    def save_centroids(self, vocab, direc, typ, type_):
+        if typ=="target":
+            boxes = self.model.embeddings_word.all_boxes
+        else:
+            boxes = self.model.embeddings_context.all_boxes
+
+        embeddings = []
+        words = []
+
+        #### append each box centroids 
+        for i,elem in enumerate(boxes):
+            box_centroid = ((elem.z + elem.Z)/2).tolist()            
+            embeddings.append(box_centroid)
+            words.append(vocab.lookup_tokens([i])[0])
+
+        embeddings_df = pd.DataFrame(embeddings)
+        embeddings_df.to_pickle(direc + '/dataframe' + '_' + typ +  '_centroids_' + type_ + '.pkl')
+        # t-SNE transform
+        tsne = TSNE(n_components=2)
+        embeddings_df_trans = tsne.fit_transform(embeddings_df)
+        embeddings_df_trans = pd.DataFrame(embeddings_df_trans)
+
+        # get token order
+        embeddings_df_trans.index = words
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=embeddings_df_trans[0],
+                y=embeddings_df_trans[1],
+                mode="text",
+                text=embeddings_df_trans.index,
+                textposition="middle center",
+                textfont=dict(color="black")
+            )
+        )
+
+        fig.update_layout(margin=dict(l=80, r=80, t=80, b=80), title={
+                    'text' : ("epochs_" + str(self.epochs) + "_min_count_" + str(self.min_count) + "_batch_size_"  + str(self.train_dataloader.batch_size) 
+                    + "_embed_dim_" +  str(self.emb_dim) + "_lr_" + str(self.lr) + "_window_" + str(self.skipgram_n_words) + "_neg_count_" + str(self.neg_count)),
+                    'x':0.5,
+                    'xanchor': 'center'
+                } )
+
+        fig.write_html(direc + '/word2box_' + typ + '_centroids_' + type_ + '_visualization.html')
 
     def save_visuals(self, vocab, direc, typ):
         if typ=="target":
@@ -186,7 +237,7 @@ class Trainer:
 
 
         ###### DISEGNA I BOX...IMPIEGA TANTO TEMPO ########
-        #for i, point in enumerate(points):
+        # for i, point in enumerate(points):
         #  color = "#%06x" % random.randint(0, 0xFFFFFF)
         #  fig.add_shape(type="rect",
         #      x0=point[0], y0=point[1], x1=point[2], y1=point[3],

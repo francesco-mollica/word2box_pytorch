@@ -17,6 +17,23 @@ from utils.calculate_correlation import save_correlations_results
 from box_embeddings.modules.volume.volume import Volume
 from box_embeddings.modules.intersection import Intersection
 from scipy.stats import reciprocal
+import math
+
+def truncate(number, decimals=0):
+    """
+    Returns a value truncated to a specific number of decimal places.
+    """
+    if not isinstance(decimals, int):
+        raise TypeError("decimal places must be an integer.")
+    elif decimals < 0:
+        raise ValueError("decimal places has to be 0 or more.")
+    elif decimals == 0:
+        return math.trunc(number)
+
+    factor = 10.0 ** decimals
+    return math.trunc(number * factor) / factor
+    
+
 
 def set_all_seeds(seed):
     random.seed(seed)
@@ -29,30 +46,35 @@ def train(config):
     
     list_batch_size_wikitext2 = [16,32,64,128,256]
     list_batch_size_wikitext103 = [2048,4096,8192,16384,32768]
-    list_lr = np.exp(np.random.uniform(np.log(np.exp(-1)), np.log(np.exp(-10)), 2))
-    print(list_lr)
+    list_lr = np.exp(np.random.uniform(np.log(np.exp(-1)), np.log(np.exp(-10)), 1))
+    list_emb_dim = [2,3,4,5,10,50,100]
+    
     list_ws = [5,6,7,8,9,10]
     list_neg_samp = [2,5,10,20]
 
-    while True:
+    check_folder_ = False
+    while check_folder_ == False:
         MYDIR = "corpus"
-        CHECK_FOLDER = os.path.isdir(MYDIR)
-        if not CHECK_FOLDER:
+        check_folder_ = os.path.isdir(MYDIR)
+        print("loop")
+        if not check_folder_:
             os.makedirs(MYDIR, exist_ok=True)
-            break
+            check_folder_ = True
         
     while True:
 
-        if config["dataset"]=="WikiText103":
-            config["train_batch_size"] = random.choice(list_batch_size_wikitext103)
-            config["min_word_frequency"] = 100
-        else:
-            config["train_batch_size"] = random.choice(list_batch_size_wikitext2)
-            config["min_word_frequency"] = 50
+        # if config["dataset"]=="WikiText103":
+        #     config["train_batch_size"] = random.choice(list_batch_size_wikitext103)
+        #     config["min_word_frequency"] = 100
+        # else:
+        #     config["train_batch_size"] = random.choice(list_batch_size_wikitext2)
+        #     config["min_word_frequency"] = 50
 
-        config["learning_rate"] = list_lr[0]
-        config["skipgram_n_words"] = random.choice(list_ws)
-        config["neg_count"] = random.choice(list_neg_samp)
+        # config["learning_rate"] = truncate(list_lr[0],6)
+        # print(config["learning_rate"])
+        # config["skipgram_n_words"] = random.choice(list_ws)
+        # config["neg_count"] = random.choice(list_neg_samp)
+        # config["embed_dimension"] = random.choice(list_emb_dim)
         
 
         path = ('/epochs_' + str(config["epochs"]) + '_min_count_' + str(config["min_word_frequency"]) 
@@ -61,7 +83,9 @@ def train(config):
         
         
         MYDIR = config["model_dir"]+ path
+        print(MYDIR)
         CHECK_FOLDER = os.path.isdir(MYDIR)
+        print(CHECK_FOLDER)
         if not CHECK_FOLDER:
             os.makedirs(config["model_dir"]+ path, exist_ok=True)
             break
@@ -81,15 +105,14 @@ def train(config):
 
     print(f"Vocabulary size: {vocab_size}")
 
-    box_vol = Volume(volume_temperature=0, intersection_temperature=0)
-    box_int = Intersection(intersection_temperature=0.001)
+    box_vol = Volume(volume_temperature=0.1, intersection_temperature=0)
+    box_int = Intersection(intersection_temperature=0)
 
     model_class = get_model_class(config["model_name"])
     model = model_class(emb_size=vocab_size, embedding_dim=config["embed_dimension"], box_vol=box_vol, box_int=box_int, vocab=vocab, frequency_vocab=frequency_vocab)
 
     optimizer_class = get_optimizer_class(config["optimizer"])
     optimizer = optimizer_class(model.parameters(), lr=config["learning_rate"])
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     trainer = Trainer(
@@ -108,12 +131,16 @@ def train(config):
     )
     
     trainer.save_model(type_="init")
+    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "target", type_='init')
+    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "context", type_='init')
     trainer.save_table(vocab=vocab, frequency_vocab = frequency_vocab, direc = config["model_dir"] + path, type_="init")
     print("INITIALIZATION DATA SAVED")
     trainer.train()
     if config["embed_dimension"] == 2:
         trainer.save_visuals(vocab = vocab, direc = config["model_dir"] + path, typ = "target")
         trainer.save_visuals(vocab = vocab, direc = config["model_dir"] + path, typ = "context")
+    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "target", type_='final')
+    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "context", type_='final')
     trainer.save_table(vocab=vocab, frequency_vocab = frequency_vocab, direc = config["model_dir"] + path, type_="final")
     print("TRAINING FINISHED AND VISUALIZATIONS SAVED.")
     print("START TRAINING WORD2VEC")
