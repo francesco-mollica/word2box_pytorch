@@ -9,9 +9,6 @@ from math import dist
 import matplotlib.patches as patches
 
 
-
-
-
 global use_cuda
 use_cuda = torch.cuda.is_available()
 device = 0 if use_cuda else -1
@@ -27,31 +24,40 @@ class BoxModel(nn.Module):
         #minimum=0, maximum=1, delta_max=1)
         self.embedding_dim = embedding_dim
         self.vocab_size = emb_size
-        self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim, box_factory=BoxFactory("sigmoid_from_vector"))
-        self.embeddings_context = BoxEmbedding(self.vocab_size, self.embedding_dim, box_factory=BoxFactory("sigmoid_from_vector"))
+        self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim)
+        self.embeddings_context = BoxEmbedding(self.vocab_size, self.embedding_dim)
+        #self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim, box_factory=BoxFactory("sigmoid_from_vector"))
+        #self.embeddings_context = BoxEmbedding(self.vocab_size, self.embedding_dim, box_factory=BoxFactory("sigmoid_from_vector"))
         
         self.box_vol = box_vol
         self.box_int = box_int
         self.vocab = vocab
         self.frequency_vocab = frequency_vocab
 
-    def forward(self, pos_u, pos_w, neg_w):
-
+    def forward_pos(self, pos_u, pos_w):
+        
         embedding_u = self.embeddings_word(pos_u)
         embedding_w = self.embeddings_context(pos_w)
-        embedding_negw = self.embeddings_context(neg_w)
-
+        
         target_vol = self.box_vol(embedding_u)
 
         positive_vol = self.box_vol(embedding_w)
-
-        negative_vol = self.box_vol(embedding_negw)
-
         positive_int_volumes = self.box_vol(self.box_int(embedding_w, embedding_u))
 
+        return target_vol, positive_vol, positive_int_volumes
+
+    def forward_neg(self, pos_u, neg_w):
+    
+        embedding_u = self.embeddings_word(pos_u)
+        embedding_negw = self.embeddings_context(neg_w)
+        
+        target_vol = self.box_vol(embedding_u)
+
+        negative_vol = self.box_vol(embedding_negw)
         negative_int_volumes = self.box_vol(self.box_int(embedding_negw, embedding_u))
 
-        return target_vol, positive_vol, negative_vol, positive_int_volumes, negative_int_volumes
+        return target_vol, negative_vol, negative_int_volumes
+
 
     def extract_embeddings(self, boxes):
 
@@ -78,7 +84,7 @@ class BoxModel(nn.Module):
         if N is None:
             N = len(self.vocab)
 
-        embedding_all_target = self.model.embeddings_word.all_boxes
+        embedding_all_target = self.embeddings_word.all_boxes
 
         try:
             index_word = (self.vocab[word])
@@ -108,7 +114,77 @@ class BoxModel(nn.Module):
         except:
             print("Word not in the dictionary") 
         
+    def most_similar_2(self, word, N=None):
 
+        if N is None:
+            N = len(self.vocab)
+
+        embedding_all_target = self.embeddings_word.all_boxes
+
+        try:
+            index_word = (self.vocab[word])
+            embedding_word = embedding_all_target[index_word]
+            
+            _, _, _, _, distance_word = self.extract_embeddings(embedding_word)
+            
+            # sim3 = torch.exp(self.box_vol(self.box_int(embedding_all_target, embedding_word))-torch.minimum(self.box_vol(embedding_all_target), self.box_vol(embedding_word)))
+              
+            # idx = (-sim3).argsort()
+            
+
+            sim3 = torch.exp(self.box_vol(self.box_int(embedding_all_target, embedding_word))- self.box_vol(embedding_all_target))
+
+            idx = (-sim3).argsort()
+
+            print(idx[0:50])
+
+            for i, index in enumerate(idx):
+                print("Similar to : ", self.vocab.lookup_token(index))
+            # n = 0
+            # for i, index in enumerate(idx):
+            #         if sim3[index].item()==1.0 and self.box_vol(embedding_all_target[index]).item()!=self.box_vol(embedding_word).item():
+            #             print("CONTAINED IN", self.vocab.lookup_token(index))
+            #             n+=1
+            #         if n==20:
+            #             break
+                    
+
+                    
+            # n=0
+            # for i, index in enumerate(idx):
+            #         if sim3[index].item()==1.0 and self.box_vol(embedding_all_target[index]).item()==self.box_vol(embedding_word).item():
+            #             print("OVERLAPPED WITH", self.vocab.lookup_token(index))
+            #             n+=1
+            #         if n==20:
+            #             break
+            
+            # n=0
+            # for i, index in enumerate(idx):
+
+            #         if sim3[index].item()!=1.0:
+            #             print("NEAR", self.vocab.lookup_token(index))
+            #             n+=1
+            #         if n==20:
+            #             break
+
+
+        #     rows = []
+
+        #     for i, index in enumerate(idx[0:N]):
+
+        #         embedding_near = embedding_all_target[index]
+        #         _, _, _, _, distance_near = self.extract_embeddings(embedding_near)
+
+        #         rows.append([index_word, word, self.frequency_vocab[self.vocab.lookup_token(index_word)], distance_word,
+        #         torch.exp(self.box_vol(embedding_word)).item(), self.vocab.lookup_token(index), self.frequency_vocab[self.vocab.lookup_token(index)], distance_near,  
+        #         torch.exp(self.model.box_vol(embedding_near)).item() ])
+        
+
+        #     df = pd.DataFrame(rows, columns=["Ix", "Word", "Frequency", "Distance", "Volume", "Similar", "Frequency", "Distance", "Volume"])
+
+        #     return df
+        except:
+            print("Word not in the dictionary")
 
     def word_probability_similarity(self, word1, word2):
 

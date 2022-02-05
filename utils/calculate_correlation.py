@@ -9,6 +9,7 @@ import torch
 from scipy.stats import spearmanr
 from box_embeddings.modules.intersection import Intersection
 from box_embeddings.modules.volume import Volume
+from scipy import spatial
 import pickle
 
 ####calculate Spearman Rank correlation and corresponding p-value
@@ -22,18 +23,22 @@ def save_correlations_results(direc):
     #word2vec_model = Word2Vec.load(f'{folder}/{dataset}/word2vec.model')
     word2vec_model = Word2Vec.load(f'{direc}/word2vec.model')
 
-    volume = Volume(volume_temperature=0.0, intersection_temperature=0.0)
-    intersection = Intersection(intersection_temperature=0.001)
+    volume = Volume(volume_temperature=0.1, intersection_temperature=0.0001)
+    intersection = Intersection(intersection_temperature=0.0001)
 
     boxes = model.embeddings_word.all_boxes
 
-    rows_data = []
+    rows_data_int = []
+    rows_data_w_int = []
+    rows_data_centroids = []
 
     for filename in os.listdir("word_similarity_dataset"):
         dataframe = pd.read_csv("word_similarity_dataset/" + filename)
         dataframe.rename( columns={'Unnamed: 0':'index'}, inplace=True )
 
-        list_similarity_word2box = []
+        list_similarity_word2box_intersection = []
+        list_similarity_word2box_weighted_intersection = []
+        list_similarity_word2box_centroids = []
         list_similarity_word2vec = []
         list_similarity_sota = []
 
@@ -50,10 +55,20 @@ def save_correlations_results(direc):
 
                 list_similarity_word2vec.append(word2vec_model.wv.similarity(row["word1"], row["word2"]))
                 list_similarity_sota.append(row["similarity"])
-                list_similarity_word2box.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))).item())
+                #####SIMPLE INTERSECTION BETWEEN BOXES#####
+                list_similarity_word2box_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))).item())
+                #####WEIGHTED INTERSECTION BETWEEN BOXES####
+                list_similarity_word2box_weighted_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))-volume(boxes[word1_word2box])).item())
+                #####COSINE SIMILARITY BETWEEN CENTROIDS#####
+                centroid_word1 = ((boxes[word1_word2box].z + boxes[word1_word2box].Z)/2).tolist()
+                centroid_word2 = ((boxes[word2_word2box].z + boxes[word2_word2box].Z)/2).tolist()
+                list_similarity_word2box_centroids.append(1 - spatial.distance.cosine(centroid_word1, centroid_word2))
+                
 
             rho_vec, p_vec = spearmanr(list_similarity_word2vec, list_similarity_sota)
-            rho_box, p_box = spearmanr(list_similarity_word2box, list_similarity_sota)
+            rho_box_int, p_box_int = spearmanr(list_similarity_word2box_intersection, list_similarity_sota)
+            rho_box_w_int, p_box_w_int = spearmanr(list_similarity_word2box_weighted_intersection, list_similarity_sota)
+            rho_box_centroids, p_box_centroids = spearmanr(list_similarity_word2box_centroids, list_similarity_sota)
 
 
 
@@ -69,17 +84,31 @@ def save_correlations_results(direc):
                 
                 list_similarity_word2vec.append(word2vec_model.wv.similarity(row["word1"][:-2], row["word2"][:-2]))
                 list_similarity_sota.append(row["similarity"])
-                list_similarity_word2box.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))).item())
+                #####SIMPLE INTERSECTION BETWEEN BOXES#####
+                list_similarity_word2box_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))).item())
+                #####WEIGHTED INTERSECTION BETWEEN BOXES####
+                list_similarity_word2box_weighted_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))-volume(boxes[word1_word2box])).item())
+                #####COSINE SIMILARITY BETWEEN CENTROIDS#####
+                centroid_word1 = ((boxes[word1_word2box].z + boxes[word1_word2box].Z)/2).tolist()
+                centroid_word2 = ((boxes[word2_word2box].z + boxes[word2_word2box].Z)/2).tolist()
+                list_similarity_word2box_centroids.append(1 - spatial.distance.cosine(centroid_word1, centroid_word2))
 
             rho_vec, p_vec = spearmanr(list_similarity_word2vec, list_similarity_sota)
-            rho_box, p_box = spearmanr(list_similarity_word2box, list_similarity_sota)
+            rho_box_int, p_box_int = spearmanr(list_similarity_word2box_intersection, list_similarity_sota)
+            rho_box_w_int, p_box_w_int = spearmanr(list_similarity_word2box_weighted_intersection, list_similarity_sota)
+            rho_box_centroids, p_box_centroids = spearmanr(list_similarity_word2box_centroids, list_similarity_sota)
 
-        rows_data.append([filename[:-4], rho_vec, p_vec, rho_box, p_box])
-
+        rows_data_int.append([filename[:-4], rho_vec, p_vec, rho_box_int, p_box_int])
+        rows_data_w_int.append([filename[:-4], rho_vec, p_vec, rho_box_w_int, p_box_w_int])
+        rows_data_centroids.append([filename[:-4], rho_vec, p_vec, rho_box_centroids, p_box_centroids])
 
     columns_ = ["dataset", "rho_vec", "p_vec", "rho_box", "p_box"]
 
-    dataf = pd.DataFrame(rows_data, columns = columns_)
+    dataf_int = pd.DataFrame(rows_data_int, columns = columns_)
+    dataf_w_int = pd.DataFrame(rows_data_w_int, columns = columns_)
+    dataf_centroids = pd.DataFrame(rows_data_centroids, columns = columns_)
 
-    dataf.to_pickle(direc + "/dataframe_correlations.pkl")
+    dataf_int.to_pickle(direc + "/simple_intersection_correlations.pkl")
+    dataf_w_int.to_pickle(direc + "/weighted_intersection_correlations.pkl")
+    dataf_centroids.to_pickle(direc + "/centroids_correlations.pkl")
 

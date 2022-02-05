@@ -105,8 +105,8 @@ def train(config):
 
     print(f"Vocabulary size: {vocab_size}")
 
-    box_vol = Volume(volume_temperature=0.1, intersection_temperature=0)
-    box_int = Intersection(intersection_temperature=0)
+    box_vol = Volume(volume_temperature=0.1, intersection_temperature=0.0001)
+    box_int = Intersection(intersection_temperature=0.0001)
 
     model_class = get_model_class(config["model_name"])
     model = model_class(emb_size=vocab_size, embedding_dim=config["embed_dimension"], box_vol=box_vol, box_int=box_int, vocab=vocab, frequency_vocab=frequency_vocab)
@@ -130,18 +130,20 @@ def train(config):
         min_count = config["min_word_frequency"],
     )
     
-    trainer.save_model(type_="init")
-    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "target", type_='init')
-    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "context", type_='init')
-    trainer.save_table(vocab=vocab, frequency_vocab = frequency_vocab, direc = config["model_dir"] + path, type_="init")
-    print("INITIALIZATION DATA SAVED")
+    #trainer.save_model(type_="init")
+    #trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "target", type_='init')
+    #trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "context", type_='init')
+    #trainer.save_table(vocab=vocab, frequency_vocab = frequency_vocab, direc = config["model_dir"] + path, type_="init")
+    #print("INITIALIZATION DATA SAVED")
+    save_vocab(vocab, (config["model_dir"] + path))
+
     trainer.train()
-    if config["embed_dimension"] == 2:
-        trainer.save_visuals(vocab = vocab, direc = config["model_dir"] + path, typ = "target")
-        trainer.save_visuals(vocab = vocab, direc = config["model_dir"] + path, typ = "context")
-    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "target", type_='final')
-    trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "context", type_='final')
-    trainer.save_table(vocab=vocab, frequency_vocab = frequency_vocab, direc = config["model_dir"] + path, type_="final")
+    #if config["embed_dimension"] == 2:
+    #    trainer.save_visuals(vocab = vocab, direc = config["model_dir"] + path, typ = "target")
+    #    trainer.save_visuals(vocab = vocab, direc = config["model_dir"] + path, typ = "context")
+    #trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "target", type_='final')
+    #trainer.save_centroids(vocab = vocab, direc = config["model_dir"] + path, typ = "context", type_='final')
+    #trainer.save_table(vocab=vocab, frequency_vocab = frequency_vocab, direc = config["model_dir"] + path, type_="final")
     print("TRAINING FINISHED AND VISUALIZATIONS SAVED.")
     print("START TRAINING WORD2VEC")
     train_save_word2vec(ds_name=config["dataset"], emb_dim = config["embed_dimension"], lr = config["learning_rate"],batch_size=config["train_batch_size"], 
@@ -150,12 +152,10 @@ def train(config):
     print("FINISH TRAINING WORD2VEC")
     trainer.save_model("final")
     trainer.save_loss()
-    save_vocab(vocab, (config["model_dir"] + path))
     save_config(config, (config["model_dir"] + path))
     print("SAVE CORRELATIONS RESULTS")
     save_correlations_results(direc = config["model_dir"] + path)
     print("MODEL ARTIFACTS SAVED TO: ", (config["model_dir"]+ path))
-    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
