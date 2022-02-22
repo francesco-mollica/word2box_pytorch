@@ -150,7 +150,7 @@ def train(config):
     epochs= config["epochs"], skipgram_n_words=config["skipgram_n_words"], neg_count=config["neg_count"], 
     min_count = config["min_word_frequency"], direc = config["model_dir"] + path)
     print("FINISH TRAINING WORD2VEC")
-    trainer.save_model("final")
+    #trainer.save_model("final")
     trainer.save_loss()
     save_config(config, (config["model_dir"] + path))
     print("SAVE CORRELATIONS RESULTS")

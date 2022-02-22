@@ -58,7 +58,7 @@ def save_correlations_results(direc):
                 #####SIMPLE INTERSECTION BETWEEN BOXES#####
                 list_similarity_word2box_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))).item())
                 #####WEIGHTED INTERSECTION BETWEEN BOXES####
-                list_similarity_word2box_weighted_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))-volume(boxes[word1_word2box])).item())
+                list_similarity_word2box_weighted_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))-torch.maximum(volume(boxes[word1_word2box]), volume(boxes[word2_word2box]))).item())
                 #####COSINE SIMILARITY BETWEEN CENTROIDS#####
                 centroid_word1 = ((boxes[word1_word2box].z + boxes[word1_word2box].Z)/2).tolist()
                 centroid_word2 = ((boxes[word2_word2box].z + boxes[word2_word2box].Z)/2).tolist()
@@ -87,7 +87,7 @@ def save_correlations_results(direc):
                 #####SIMPLE INTERSECTION BETWEEN BOXES#####
                 list_similarity_word2box_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))).item())
                 #####WEIGHTED INTERSECTION BETWEEN BOXES####
-                list_similarity_word2box_weighted_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))-volume(boxes[word1_word2box])).item())
+                list_similarity_word2box_weighted_intersection.append(torch.exp(volume(intersection(boxes[word1_word2box], boxes[word2_word2box]))-torch.maximum(volume(boxes[word1_word2box]), volume(boxes[word2_word2box]))).item())
                 #####COSINE SIMILARITY BETWEEN CENTROIDS#####
                 centroid_word1 = ((boxes[word1_word2box].z + boxes[word1_word2box].Z)/2).tolist()
                 centroid_word2 = ((boxes[word2_word2box].z + boxes[word2_word2box].Z)/2).tolist()

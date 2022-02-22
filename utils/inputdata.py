@@ -102,26 +102,26 @@ class InputData(Dataset):
     def get_neg_v_neg_sampling(self, pos_word_pair, count):
         
         neg_v_all = []
-        coppie = torch.tensor(pos_word_pair).T
-        coppie_0 = coppie[0,].tolist()
-        coppie_1 = coppie[1,].tolist()
-        list_0 = list(set(coppie_0))
-        list_1 = list(set(coppie_1))
-        list_total = list(set(list_0 + list_1))
+        # coppie = torch.tensor(pos_word_pair).T
+        # coppie_0 = coppie[0,].tolist()
+        # coppie_1 = coppie[1,].tolist()
+        # list_0 = list(set(coppie_0))
+        # list_1 = list(set(coppie_1))
+        # list_total = list(set(list_0 + list_1))
         
         for elem in pos_word_pair:
-        #     coppie = []
-        #     for el in pos_word_pair:
-        #         if elem[0] == el[0]:
-        #             coppie.append(el)
+            # coppie = []
+            # for el in pos_word_pair:
+            #     if elem[0] == el[0]:
+            #         coppie.append(el)
             
-        #     coppie = torch.tensor(coppie).T
-        #     coppie_0 = coppie[0,].tolist()
-        #     coppie_1 = coppie[1,].tolist()
-        #     list_0 = list(set(coppie_0))
-        #     list_1 = list(set(coppie_1))
-        #     list_total = list(set(list_0 + list_1))
-
+            # coppie = torch.tensor(coppie).T
+            # coppie_0 = coppie[0,].tolist()
+            # coppie_1 = coppie[1,].tolist()
+            # list_0 = list(set(coppie_0))
+            # list_1 = list(set(coppie_1))
+            # list_total = list(set(list_0 + list_1))
+            list_total = [elem[0]]
             neg_v = numpy.random.choice(self.sample_table, size=(count)).tolist()
             not_contains = [target for target in neg_v if target not in list_total]
             contains = [target for target in neg_v if target in list_total]
@@ -183,11 +183,6 @@ class InputData(Dataset):
         neg_v = self.get_neg_v_neg_sampling(batch_pairs, self.neg_count)
 
         return torch.tensor(batch_pairs).T, torch.tensor(neg_v)
-
-    def evaluate_pair_count_2(self, window_size):
-        return self.sentence_length * (2 * window_size - 1) - (
-            self.sentence_count - 1) * (1 + window_size) * window_size
-
 
     def evaluate_pair_count(self, window_size):
         
