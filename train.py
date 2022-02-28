@@ -165,5 +165,5 @@ if __name__ == '__main__':
     with open(args.config, 'r') as stream:
         config = yaml.safe_load(stream)
 
-    #set_all_seeds(12345)
+    set_all_seeds(42)
     train(config)

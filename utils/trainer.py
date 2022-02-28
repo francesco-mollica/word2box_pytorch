@@ -63,7 +63,6 @@ class Trainer:
         return loss
 
     def train(self):
-
         self.model.train()
         running_loss = []
         pair_count = self.train_dataloader.evaluate_pair_count(self.skipgram_n_words)
@@ -74,7 +73,7 @@ class Trainer:
         loss_best_positive = float('-inf')
         loss_positive = []
 
-        #scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=(int(pair_count/self.train_dataloader.batch_size)*3), gamma=self.lr)
+        scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=(int(pair_count/self.train_dataloader.batch_size)*3), gamma=self.lr)
 
         print("START TRAINING BOX-MODEL")
         for i in process_bar:
@@ -108,14 +107,12 @@ class Trainer:
             
             loss.backward()
             self.optimizer.step()
-            #scheduler.step()
+            scheduler.step()
 
             loss_positive.append(torch.mean(loss_pos).item())
             running_loss.append(loss.item())
-            if i%50==0:
-                print(np.mean(loss_positive))
+
             if i%int(pair_count/self.train_dataloader.batch_size)==0:
-                print(pos_pairs)
                 
                 model_path = os.path.join(self.model_dir, "checkpoint_" + 'epoch_' + str(int(i/int(pair_count/self.train_dataloader.batch_size))) + ".pt")
 
@@ -144,10 +141,10 @@ class Trainer:
         self.save_model(best_model, "final")    
         print("FINISH TRAINING BOX-MODEL")
 
-    def save_model(self, type_):
+    def save_model(self, model,  type_):
         """Save final model to `self.model_dir` directory"""
         model_path = os.path.join(self.model_dir, "model" + '_' + type_ + ".pt")
-        torch.save(self.model, model_path)
+        torch.save(model, model_path)
 
     def save_loss(self):
         """Save train/val loss as json file to `self.model_dir` directory"""
