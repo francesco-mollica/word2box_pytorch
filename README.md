@@ -20,7 +20,7 @@ Difference with the original word2vec paper by Mikolov - [Distributed Representa
 
 
 ### Skip-Gram word2box Model in Details
-![alt text](docs/skip-gram.png)
+![alt text](skip-gram.png)
 
 
 ## Project Structure
